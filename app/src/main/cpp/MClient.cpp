@@ -38,6 +38,8 @@ int MClient::start() {
     flag_run = true;
     int rc = pthread_create(&m_thread, NULL, MCLIENT_THREAD, this);
     if(rc) {
+        string msg = "Error starting client";
+        haveError(m_code,msg);
         return -2;
     }
     return 0;
@@ -51,6 +53,8 @@ void MClient::run() {
             flag_run = false;
             string msg = "Error received data";
             haveError(m_code,msg);
+            close(socket_tcp_ip);
+            disconnected(m_code);
         }
         haveData(m_code, m_buffer, n);
     }
@@ -61,8 +65,9 @@ void MClient::stop() {
     if(flag_run) {
         flag_run = false;
         pthread_join(m_thread, NULL);
+        close(socket_tcp_ip);
+        disconnected(m_code);
     }
-    close(socket_tcp_ip);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void MClient::send(char *data, size_t length) {

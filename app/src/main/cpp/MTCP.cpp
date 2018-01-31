@@ -52,20 +52,62 @@ void MTCP::MyClient::sended(string code) {
         m_parent->sendedDataToClient(code);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-int MTCP::start() {
-    if(flag_run) {
+void MTCP::MyClient::disconnected(string code) {
+    if(m_parent != nullptr) {
+        m_parent->disconnectedClient(code);
+        if(m_parent->disconnectClient(code) != 0) {
+            string msg = "Server error - disconnect client [" + code + "] - not finded clients";
+            m_parent->haveErrorServer(msg);
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void MTCP::init(int port) {
+    m_port = port;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+int MTCP::connectSocket() {
+    m_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if(m_socket < 0) {
+        string msg = "Server error opening socket";
+        haveErrorServer(msg);
         return -1;
     }
-    flag_run = true;
-    int rc = pthread_create(&m_thread, NULL, MTCP_THREAD, this);
-    if(rc) {
+    bzero((char *) &server_address, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons(m_port);
+    if(bind(m_socket,(struct sockaddr *)&server_address,sizeof(server_address)) < 0) {
+        string msg = "Server error on binding";
+        haveErrorServer(msg);
         return -2;
     }
     return 0;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+int MTCP::start() {
+    if(connectSocket() != 0) {
+        return -1;
+    }
+    if(flag_run) {
+        string msg = "Server error - server running";
+        haveErrorServer(msg);
+        return -2;
+    }
+    flag_run = true;
+    int rc = pthread_create(&m_thread, NULL, MTCP_THREAD, this);
+    if(rc) {
+        string msg = "Server error begin";
+        haveErrorServer(msg);
+        return -3;
+    }
+    string msg = "Server starting";
+    haveStatusServer(msg);
+    return 0;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
 void MTCP::run() {
-    listen(m_socket,5);
+    listen(m_socket,10);
     socklen_t m_client_socket_length;
     m_client_socket_length = sizeof(sockaddr_in);
     while(flag_run) {
@@ -104,6 +146,32 @@ void MTCP::run() {
         haveStatusServer(msg);
         delete[] m_msg;
         usleep(1);
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+int MTCP::indexClient(string code) {
+    int m_index = 0;
+    int m_size = m_clients.size();
+    bool m_flag = false;
+    for(m_index = 0; m_index < m_size; m_index++) {
+        if(code.compare(m_clients.at(m_index).getCode()) == 0) {
+            m_flag = true;
+            break;
+        }
+    }
+    if(m_flag)
+        return m_index;
+    else
+        return -1;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
+int MTCP::disconnectClient(string code) {
+    int m_index = indexClient(code);
+    if(m_index < 0) {
+        return -1;
+    } else {
+        m_clients.erase(m_clients.begin() + m_index);
+        return 0;
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////

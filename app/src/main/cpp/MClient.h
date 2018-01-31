@@ -42,7 +42,7 @@ public:
     virtual void haveData(string code, char* m_data, size_t length) = 0;
     virtual void haveError(string code, string m_msg) = 0;
     virtual void sended(string code) = 0;
-    virtual void disconnect(string code) = 0;
+    virtual void disconnected(string code) = 0;
 };
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #endif //FACTORYODROID_MCLIENT_H
